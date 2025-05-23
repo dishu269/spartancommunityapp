@@ -1,0 +1,3500 @@
+openapi: 3.0.3
+info:
+  title: DirectGrow Hub API
+  description: |
+    API specification for DirectGrow Hub - a mobile-first SaaS application for direct-selling/MLM teams in India.
+    This API facilitates communication between mobile applications and the backend services.
+  version: 1.0.0
+  contact:
+    name: DirectGrow Hub Support
+    email: support@directgrowhub.com
+servers:
+  - url: https://api.directgrowhub.com/v1
+    description: Production server
+  - url: https://staging-api.directgrowhub.com/v1
+    description: Staging server
+  - url: https://dev-api.directgrowhub.com/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Onboarding
+    description: User registration and onboarding processes
+  - name: Training
+    description: Learning modules, content, and progress tracking
+  - name: Community
+    description: Social learning and community interaction features
+  - name: Analytics
+    description: Progress tracking and performance analytics
+  - name: Leads
+    description: Lead generation and management
+  - name: Compliance
+    description: Compliance and ethics related endpoints
+  - name: Content
+    description: Content management endpoints
+  - name: Notifications
+    description: Push notifications and messaging
+
+components:
+  securitySchemes:
+    firebaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Firebase Authentication JWT token.
+        Get a token by authenticating with Firebase Auth and pass it as a Bearer token.
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: HTTP status code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Additional error details
+
+    ValidationError:
+      type: object
+      required:
+        - code
+        - message
+        - errors
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: HTTP status code (422)
+        message:
+          type: string
+          description: Validation error message
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+                description: Field that failed validation
+              message:
+                type: string
+                description: Validation error message for this field
+
+    PaginatedResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+        pagination:
+          type: object
+          required:
+            - total
+            - page
+            - pageSize
+            - totalPages
+          properties:
+            total:
+              type: integer
+              description: Total number of items
+            page:
+              type: integer
+              description: Current page number (1-based)
+            pageSize:
+              type: integer
+              description: Number of items per page
+            totalPages:
+              type: integer
+              description: Total number of pages
+            nextPageToken:
+              type: string
+              description: Token for cursor-based pagination (next page)
+            prevPageToken:
+              type: string
+              description: Token for cursor-based pagination (previous page)
+
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - phone
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Unique user identifier
+        name:
+          type: string
+          description: User's full name
+        phone:
+          type: string
+          description: User's phone number
+        email:
+          type: string
+          format: email
+          description: User's email address (optional)
+        profilePicture:
+          type: string
+          format: uri
+          description: URL to user's profile picture
+        sponsorId:
+          type: string
+          description: ID of the user's sponsor/referrer
+        role:
+          type: string
+          enum: [distributor, leader, admin]
+          description: User's role in the system
+        language:
+          type: string
+          enum: [en, hi]
+          default: en
+          description: User's preferred language
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    UserProfile:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          description: User ID
+        aadharNumber:
+          type: string
+          description: Aadhar card number
+        panNumber:
+          type: string
+          description: PAN card number
+        address:
+          type: object
+          properties:
+            line1:
+              type: string
+            line2:
+              type: string
+            city:
+              type: string
+            state:
+              type: string
+            pincode:
+              type: string
+        bankDetails:
+          type: object
+          properties:
+            accountNumber:
+              type: string
+            ifscCode:
+              type: string
+            accountHolderName:
+              type: string
+            bankName:
+              type: string
+        documentsVerified:
+          type: boolean
+          default: false
+          description: Whether user documents are verified
+
+    OnboardingStep:
+      type: object
+      required:
+        - id
+        - title
+        - completed
+      properties:
+        id:
+          type: string
+          description: Step identifier
+        title:
+          type: string
+          description: Step title
+        description:
+          type: string
+          description: Step description
+        completed:
+          type: boolean
+          description: Whether the step is completed
+        completedAt:
+          type: string
+          format: date-time
+          description: When the step was completed
+
+    TrainingModule:
+      type: object
+      required:
+        - id
+        - title
+        - contentType
+        - category
+      properties:
+        id:
+          type: string
+          description: Module identifier
+        title:
+          type: string
+          description: Module title
+        description:
+          type: string
+          description: Module description
+        contentType:
+          type: string
+          enum: [video, pdf, infographic, quiz]
+          description: Type of content
+        category:
+          type: string
+          enum: [company_basics, product_basics, compensation_plan, compliance, social_media, trends]
+          description: Module category
+        duration:
+          type: integer
+          description: Duration in seconds (for videos)
+        thumbnailUrl:
+          type: string
+          format: uri
+          description: URL to module thumbnail
+        contentUrl:
+          type: string
+          format: uri
+          description: URL to content
+        mandatory:
+          type: boolean
+          default: false
+          description: Whether the module is mandatory
+        order:
+          type: integer
+          description: Display order within category
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Quiz:
+      type: object
+      required:
+        - id
+        - moduleId
+        - title
+        - questions
+        - passingScore
+      properties:
+        id:
+          type: string
+          description: Quiz identifier
+        moduleId:
+          type: string
+          description: Associated module ID
+        title:
+          type: string
+          description: Quiz title
+        description:
+          type: string
+          description: Quiz description
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestion'
+        passingScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          default: 80
+          description: Passing score percentage
+        timeLimit:
+          type: integer
+          description: Time limit in seconds (0 for unlimited)
+
+    QuizQuestion:
+      type: object
+      required:
+        - id
+        - text
+        - options
+        - correctOptionId
+      properties:
+        id:
+          type: string
+          description: Question identifier
+        text:
+          type: string
+          description: Question text
+        options:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - text
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+        correctOptionId:
+          type: string
+          description: ID of the correct option
+        explanation:
+          type: string
+          description: Explanation of the correct answer
+
+    QuizAttempt:
+      type: object
+      required:
+        - id
+        - userId
+        - quizId
+        - score
+        - passed
+      properties:
+        id:
+          type: string
+          description: Attempt identifier
+        userId:
+          type: string
+          description: User ID
+        quizId:
+          type: string
+          description: Quiz ID
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Score percentage
+        passed:
+          type: boolean
+          description: Whether the attempt passed
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              questionId:
+                type: string
+              selectedOptionId:
+                type: string
+              correct:
+                type: boolean
+        startedAt:
+          type: string
+          format: date-time
+          description: When the attempt started
+        completedAt:
+          type: string
+          format: date-time
+          description: When the attempt was completed
+
+    ModuleProgress:
+      type: object
+      required:
+        - userId
+        - moduleId
+        - completed
+      properties:
+        userId:
+          type: string
+          description: User ID
+        moduleId:
+          type: string
+          description: Module ID
+        completed:
+          type: boolean
+          description: Whether the module is completed
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Progress percentage
+        lastAccessedAt:
+          type: string
+          format: date-time
+          description: Last access timestamp
+        completedAt:
+          type: string
+          format: date-time
+          description: Completion timestamp
+
+    Badge:
+      type: object
+      required:
+        - id
+        - title
+        - imageUrl
+      properties:
+        id:
+          type: string
+          description: Badge identifier
+        title:
+          type: string
+          description: Badge title
+        description:
+          type: string
+          description: Badge description
+        imageUrl:
+          type: string
+          format: uri
+          description: URL to badge image
+        criteria:
+          type: string
+          description: Criteria for earning the badge
+        category:
+          type: string
+          enum: [learning, sales, community, streak]
+          description: Badge category
+
+    UserBadge:
+      type: object
+      required:
+        - userId
+        - badgeId
+        - earnedAt
+      properties:
+        userId:
+          type: string
+          description: User ID
+        badgeId:
+          type: string
+          description: Badge ID
+        earnedAt:
+          type: string
+          format: date-time
+          description: When the badge was earned
+
+    Certificate:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - issuedAt
+      properties:
+        id:
+          type: string
+          description: Certificate identifier
+        userId:
+          type: string
+          description: User ID
+        title:
+          type: string
+          description: Certificate title
+        description:
+          type: string
+          description: Certificate description
+        imageUrl:
+          type: string
+          format: uri
+          description: URL to certificate image
+        pdfUrl:
+          type: string
+          format: uri
+          description: URL to certificate PDF
+        issuedAt:
+          type: string
+          format: date-time
+          description: When the certificate was issued
+
+    DiscussionPost:
+      type: object
+      required:
+        - id
+        - userId
+        - content
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Post identifier
+        userId:
+          type: string
+          description: User ID of the author
+        topic:
+          type: string
+          enum: [product_faqs, success_tips, regional]
+          description: Discussion topic
+        title:
+          type: string
+          description: Post title
+        content:
+          type: string
+          description: Post content
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              url:
+                type: string
+                format: uri
+              type:
+                type: string
+                enum: [image, video, document]
+        upvotes:
+          type: integer
+          default: 0
+          description: Number of upvotes
+        commentCount:
+          type: integer
+          default: 0
+          description: Number of comments
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Comment:
+      type: object
+      required:
+        - id
+        - postId
+        - userId
+        - content
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Comment identifier
+        postId:
+          type: string
+          description: Post ID
+        userId:
+          type: string
+          description: User ID of the commenter
+        content:
+          type: string
+          description: Comment content
+        mentions:
+          type: array
+          items:
+            type: string
+          description: User IDs mentioned in the comment
+        reactions:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Emoji reactions count (emoji -> count)
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Lead:
+      type: object
+      required:
+        - id
+        - name
+        - phone
+        - distributorId
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Lead identifier
+        name:
+          type: string
+          description: Lead's name
+        phone:
+          type: string
+          description: Lead's phone number
+        email:
+          type: string
+          format: email
+          description: Lead's email address
+        distributorId:
+          type: string
+          description: ID of the distributor who added the lead
+        status:
+          type: string
+          enum: [new, contacted, interested, not_interested, converted]
+          default: new
+          description: Lead status
+        notes:
+          type: string
+          description: Notes about the lead
+        lastContactedAt:
+          type: string
+          format: date-time
+          description: When the lead was last contacted
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    LandingPage:
+      type: object
+      required:
+        - id
+        - distributorId
+        - title
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Landing page identifier
+        distributorId:
+          type: string
+          description: Distributor ID
+        title:
+          type: string
+          description: Landing page title
+        description:
+          type: string
+          description: Landing page description
+        imageUrl:
+          type: string
+          format: uri
+          description: URL to landing page image
+        ctaText:
+          type: string
+          description: Call-to-action button text
+        theme:
+          type: string
+          enum: [default, dark, light, colorful]
+          default: default
+          description: Landing page theme
+        customFields:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              type:
+                type: string
+                enum: [text, email, phone, checkbox]
+              required:
+                type: boolean
+        url:
+          type: string
+          format: uri
+          description: Public URL of the landing page
+        visits:
+          type: integer
+          default: 0
+          description: Number of visits
+        conversions:
+          type: integer
+          default: 0
+          description: Number of conversions
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    FollowUp:
+      type: object
+      required:
+        - id
+        - leadId
+        - type
+        - status
+        - scheduledAt
+      properties:
+        id:
+          type: string
+          description: Follow-up identifier
+        leadId:
+          type: string
+          description: Lead ID
+        type:
+          type: string
+          enum: [whatsapp, sms, call]
+          description: Follow-up type
+        status:
+          type: string
+          enum: [scheduled, sent, failed, completed]
+          description: Follow-up status
+        message:
+          type: string
+          description: Follow-up message
+        scheduledAt:
+          type: string
+          format: date-time
+          description: When the follow-up is scheduled
+        completedAt:
+          type: string
+          format: date-time
+          description: When the follow-up was completed
+
+    CompliancePolicy:
+      type: object
+      required:
+        - id
+        - title
+        - version
+        - effectiveDate
+      properties:
+        id:
+          type: string
+          description: Policy identifier
+        title:
+          type: string
+          description: Policy title
+        description:
+          type: string
+          description: Policy description
+        content:
+          type: string
+          description: Policy content
+        version:
+          type: string
+          description: Policy version
+        effectiveDate:
+          type: string
+          format: date
+          description: When the policy becomes effective
+        acknowledgmentRequired:
+          type: boolean
+          default: true
+          description: Whether acknowledgment is required
+
+    PolicyAcknowledgment:
+      type: object
+      required:
+        - userId
+        - policyId
+        - acknowledged
+        - acknowledgedAt
+      properties:
+        userId:
+          type: string
+          description: User ID
+        policyId:
+          type: string
+          description: Policy ID
+        acknowledged:
+          type: boolean
+          description: Whether the policy was acknowledged
+        acknowledgedAt:
+          type: string
+          format: date-time
+          description: When the policy was acknowledged
+
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - type
+        - title
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Notification identifier
+        userId:
+          type: string
+          description: User ID
+        type:
+          type: string
+          enum: [system, training, social, lead, compliance]
+          description: Notification type
+        title:
+          type: string
+          description: Notification title
+        message:
+          type: string
+          description: Notification message
+        data:
+          type: object
+          description: Additional notification data
+        read:
+          type: boolean
+          default: false
+          description: Whether the notification is read
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    AnalyticsData:
+      type: object
+      properties:
+        modules:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of modules
+            completed:
+              type: integer
+              description: Number of completed modules
+            inProgress:
+              type: integer
+              description: Number of modules in progress
+            completionRate:
+              type: number
+              format: float
+              description: Module completion rate
+        quizzes:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of quizzes
+            passed:
+              type: integer
+              description: Number of passed quizzes
+            failed:
+              type: integer
+              description: Number of failed quizzes
+            averageScore:
+              type: number
+              format: float
+              description: Average quiz score
+        leads:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of leads
+            new:
+              type: integer
+              description: Number of new leads
+            contacted:
+              type: integer
+              description: Number of contacted leads
+            interested:
+              type: integer
+              description: Number of interested leads
+            converted:
+              type: integer
+              description: Number of converted leads
+            conversionRate:
+              type: number
+              format: float
+              description: Lead conversion rate
+        earnings:
+          type: object
+          properties:
+            total:
+              type: number
+              format: float
+              description: Total earnings
+            thisMonth:
+              type: number
+              format: float
+              description: Earnings this month
+            lastMonth:
+              type: number
+              format: float
+              description: Earnings last month
+            growth:
+              type: number
+              format: float
+              description: Growth percentage
+
+    TeamAnalytics:
+      type: object
+      properties:
+        teamSize:
+          type: integer
+          description: Team size
+        activeDistributors:
+          type: integer
+          description: Number of active distributors
+        inactiveDistributors:
+          type: integer
+          description: Number of inactive distributors
+        newDistributors:
+          type: integer
+          description: Number of new distributors
+        averageModuleCompletion:
+          type: number
+          format: float
+          description: Average module completion rate
+        averageQuizScore:
+          type: number
+          format: float
+          description: Average quiz score
+        totalLeads:
+          type: integer
+          description: Total number of leads
+        leadConversionRate:
+          type: number
+          format: float
+          description: Lead conversion rate
+        totalRevenue:
+          type: number
+          format: float
+          description: Total team revenue
+        topPerformers:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              name:
+                type: string
+              revenue:
+                type: number
+                format: float
+              leadsConverted:
+                type: integer
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: Bad request
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: Unauthorized
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 403
+            message: Forbidden
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: Resource not found
+    ValidationFailed:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            code: 422
+            message: Validation failed
+            errors:
+              - field: name
+                message: Name is required
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: Internal server error
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-based)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PageTokenParam:
+      name: pageToken
+      in: query
+      description: Token for cursor-based pagination
+      schema:
+        type: string
+    SortParam:
+      name: sort
+      in: query
+      description: Sort field and direction (e.g., createdAt:desc)
+      schema:
+        type: string
+    FilterParam:
+      name: filter
+      in: query
+      description: Filter criteria in JSON format
+      schema:
+        type: string
+    LanguageParam:
+      name: language
+      in: query
+      description: Language code
+      schema:
+        type: string
+        enum: [en, hi]
+        default: en
+
+security:
+  - firebaseAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Register a new distributor with basic information
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - phone
+                - sponsorId
+              properties:
+                name:
+                  type: string
+                  description: User's full name
+                phone:
+                  type: string
+                  description: User's phone number
+                email:
+                  type: string
+                  format: email
+                  description: User's email address (optional)
+                sponsorId:
+                  type: string
+                  description: ID of the sponsor/referrer
+                language:
+                  type: string
+                  enum: [en, hi]
+                  default: en
+                  description: Preferred language
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Registration successful
+                  userId:
+                    type: string
+                    example: "user123"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/verify-otp:
+    post:
+      tags:
+        - Authentication
+      summary: Verify OTP
+      description: Verify the OTP sent to the user's phone
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - otp
+              properties:
+                phone:
+                  type: string
+                  description: User's phone number
+                otp:
+                  type: string
+                  description: OTP received by the user
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token
+                  refreshToken:
+                    type: string
+                    description: Refresh token
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Invalid OTP
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh-token:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh token
+      description: Get a new access token using a refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: Refresh token
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: New JWT token
+                  refreshToken:
+                    type: string
+                    description: New refresh token
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Invalid refresh token
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Get the profile of the currently authenticated user
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Authentication
+      summary: Update current user
+      description: Update the profile of the currently authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: User's full name
+                email:
+                  type: string
+                  format: email
+                  description: User's email address
+                language:
+                  type: string
+                  enum: [en, hi]
+                  description: Preferred language
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get user profile details
+      description: Get detailed profile information of the current user
+      responses:
+        '200':
+          description: User profile details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Authentication
+      summary: Update user profile details
+      description: Update detailed profile information of the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aadharNumber:
+                  type: string
+                  description: Aadhar card number
+                panNumber:
+                  type: string
+                  description: PAN card number
+                address:
+                  type: object
+                  properties:
+                    line1:
+                      type: string
+                    line2:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    pincode:
+                      type: string
+                bankDetails:
+                  type: object
+                  properties:
+                    accountNumber:
+                      type: string
+                    ifscCode:
+                      type: string
+                    accountHolderName:
+                      type: string
+                    bankName:
+                      type: string
+      responses:
+        '200':
+          description: User profile details updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/profile/documents:
+    post:
+      tags:
+        - Authentication
+      summary: Upload user documents
+      description: Upload Aadhar/PAN and other verification documents
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                aadharFront:
+                  type: string
+                  format: binary
+                  description: Front side of Aadhar card
+                aadharBack:
+                  type: string
+                  format: binary
+                  description: Back side of Aadhar card
+                panCard:
+                  type: string
+                  format: binary
+                  description: PAN card
+                documentType:
+                  type: string
+                  enum: [aadhar, pan, other]
+                  description: Type of document
+      responses:
+        '200':
+          description: Documents uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Documents uploaded successfully
+                  documentUrls:
+                    type: object
+                    properties:
+                      aadharFront:
+                        type: string
+                        format: uri
+                      aadharBack:
+                        type: string
+                        format: uri
+                      panCard:
+                        type: string
+                        format: uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/profile-picture:
+    post:
+      tags:
+        - Authentication
+      summary: Upload profile picture
+      description: Upload or update user's profile picture
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Profile picture image
+      responses:
+        '200':
+          description: Profile picture uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile picture uploaded successfully
+                  imageUrl:
+                    type: string
+                    format: uri
+                    example: https://storage.directgrowhub.com/profile-pictures/user123.jpg
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /onboarding/steps:
+    get:
+      tags:
+        - Onboarding
+      summary: Get onboarding steps
+      description: Get the list of onboarding steps for the current user
+      responses:
+        '200':
+          description: Onboarding steps retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OnboardingStep'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /onboarding/steps/{stepId}/complete:
+    post:
+      tags:
+        - Onboarding
+      summary: Complete onboarding step
+      description: Mark an onboarding step as completed
+      parameters:
+        - name: stepId
+          in: path
+          required: true
+          description: Onboarding step ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Onboarding step completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStep'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /onboarding/welcome-message:
+    get:
+      tags:
+        - Onboarding
+      summary: Get welcome message
+      description: Get the welcome message for the current user
+      responses:
+        '200':
+          description: Welcome message retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title:
+                    type: string
+                    example: Welcome to DirectGrow Hub!
+                  message:
+                    type: string
+                    example: We're excited to have you join our community of successful distributors.
+                  videoUrl:
+                    type: string
+                    format: uri
+                    example: https://storage.directgrowhub.com/welcome-videos/intro.mp4
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/modules:
+    get:
+      tags:
+        - Training
+      summary: Get training modules
+      description: Get the list of training modules
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+            enum: [company_basics, product_basics, compensation_plan, compliance, social_media, trends]
+        - name: contentType
+          in: query
+          description: Filter by content type
+          schema:
+            type: string
+            enum: [video, pdf, infographic, quiz]
+        - name: mandatory
+          in: query
+          description: Filter by mandatory flag
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Training modules retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrainingModule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/modules/{moduleId}:
+    get:
+      tags:
+        - Training
+      summary: Get training module
+      description: Get a specific training module by ID
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          description: Training module ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Training module retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingModule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/modules/{moduleId}/content:
+    get:
+      tags:
+        - Training
+      summary: Get module content
+      description: Get the content of a specific training module
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          description: Training module ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Module content retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  moduleId:
+                    type: string
+                  contentType:
+                    type: string
+                    enum: [video, pdf, infographic, quiz]
+                  contentUrl:
+                    type: string
+                    format: uri
+                  streamingUrl:
+                    type: string
+                    format: uri
+                    description: HLS streaming URL for videos
+                  offlineAvailable:
+                    type: boolean
+                    description: Whether the content is available offline
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/modules/{moduleId}/progress:
+    get:
+      tags:
+        - Training
+      summary: Get module progress
+      description: Get the progress of a specific training module for the current user
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          description: Training module ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Module progress retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleProgress'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Training
+      summary: Update module progress
+      description: Update the progress of a specific training module for the current user
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          description: Training module ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                progress:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  description: Progress percentage
+                completed:
+                  type: boolean
+                  description: Whether the module is completed
+      responses:
+        '200':
+          description: Module progress updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleProgress'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/quizzes/{quizId}:
+    get:
+      tags:
+        - Training
+      summary: Get quiz
+      description: Get a specific quiz by ID
+      parameters:
+        - name: quizId
+          in: path
+          required: true
+          description: Quiz ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Quiz retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/quizzes/{quizId}/attempt:
+    post:
+      tags:
+        - Training
+      summary: Submit quiz attempt
+      description: Submit an attempt for a specific quiz
+      parameters:
+        - name: quizId
+          in: path
+          required: true
+          description: Quiz ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - answers
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - questionId
+                      - selectedOptionId
+                    properties:
+                      questionId:
+                        type: string
+                      selectedOptionId:
+                        type: string
+                timeSpent:
+                  type: integer
+                  description: Time spent in seconds
+      responses:
+        '200':
+          description: Quiz attempt submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizAttempt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/quizzes/{quizId}/attempts:
+    get:
+      tags:
+        - Training
+      summary: Get quiz attempts
+      description: Get all attempts for a specific quiz by the current user
+      parameters:
+        - name: quizId
+          in: path
+          required: true
+          description: Quiz ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quiz attempts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuizAttempt'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/badges:
+    get:
+      tags:
+        - Training
+      summary: Get badges
+      description: Get all badges available in the system
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+            enum: [learning, sales, community, streak]
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Badges retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Badge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/badges/my:
+    get:
+      tags:
+        - Training
+      summary: Get my badges
+      description: Get all badges earned by the current user
+      responses:
+        '200':
+          description: User badges retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Badge'
+                    - type: object
+                      properties:
+                        earnedAt:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/certificates:
+    get:
+      tags:
+        - Training
+      summary: Get certificates
+      description: Get all certificates earned by the current user
+      responses:
+        '200':
+          description: Certificates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Certificate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/certificates/{certificateId}:
+    get:
+      tags:
+        - Training
+      summary: Get certificate
+      description: Get a specific certificate by ID
+      parameters:
+        - name: certificateId
+          in: path
+          required: true
+          description: Certificate ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Certificate retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certificate'
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /training/leaderboard:
+    get:
+      tags:
+        - Training
+      summary: Get leaderboard
+      description: Get the training leaderboard
+      parameters:
+        - name: type
+          in: query
+          description: Leaderboard type
+          schema:
+            type: string
+            enum: [modules, quizzes, badges]
+            default: modules
+        - name: timeframe
+          in: query
+          description: Timeframe for the leaderboard
+          schema:
+            type: string
+            enum: [week, month, all_time]
+            default: week
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Leaderboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            userId:
+                              type: string
+                            name:
+                              type: string
+                            profilePicture:
+                              type: string
+                              format: uri
+                            rank:
+                              type: integer
+                            score:
+                              type: integer
+                            badgeCount:
+                              type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /motivation/weekly:
+    get:
+      tags:
+        - Training
+      summary: Get weekly motivation
+      description: Get the weekly motivation content
+      responses:
+        '200':
+          description: Weekly motivation retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  contentType:
+                    type: string
+                    enum: [video, audio, article]
+                  contentUrl:
+                    type: string
+                    format: uri
+                  thumbnailUrl:
+                    type: string
+                    format: uri
+                  createdAt:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /community/posts:
+    get:
+      tags:
+        - Community
+      summary: Get discussion posts
+      description: Get all discussion posts
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: topic
+          in: query
+          description: Filter by topic
+          schema:
+            type: string
+            enum: [product_faqs, success_tips, regional]
+        - name: search
+          in: query
+          description: Search term
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Discussion posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/DiscussionPost'
+                            - type: object
+                              properties:
+                                author:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                                    profilePicture:
+                                      type: string
+                                      format: uri
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Community
+      summary: Create discussion post
+      description: Create a new discussion post
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                title:
+                  type: string
+                  description: Post title
+                content:
+                  type: string
+                  description: Post content
+                topic:
+                  type: string
+                  enum: [product_faqs, success_tips, regional]
+                  description: Discussion topic
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                    description: Attachments (images, videos, documents)
+      responses:
+        '201':
+          description: Discussion post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscussionPost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /community/posts/{postId}:
+    get:
+      tags:
+        - Community
+      summary: Get discussion post
+      description: Get a specific discussion post by ID
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Discussion post retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DiscussionPost'
+                  - type: object
+                    properties:
+                      author:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          profilePicture:
+                            type: string
+                            format: uri
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Community
+      summary: Update discussion post
+      description: Update a specific discussion post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Post title
+                content:
+                  type: string
+                  description: Post content
+                topic:
+                  type: string
+                  enum: [product_faqs, success_tips, regional]
+                  description: Discussion topic
+      responses:
+        '200':
+          description: Discussion post updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscussionPost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Community
+      summary: Delete discussion post
+      description: Delete a specific discussion post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Discussion post deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /community/posts/{postId}/upvote:
+    post:
+      tags:
+        - Community
+      summary: Upvote discussion post
+      description: Upvote a specific discussion post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Discussion post upvoted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  postId:
+                    type: string
+                  upvotes:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Community
+      summary: Remove upvote from discussion post
+      description: Remove upvote from a specific discussion post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Upvote removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  postId:
+                    type: string
+                  upvotes:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /community/posts/{postId}/comments:
+    get:
+      tags:
+        - Community
+      summary: Get post comments
+      description: Get all comments for a specific discussion post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/Comment'
+                            - type: object
+                              properties:
+                                author:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                                    profilePicture:
+                                      type: string
+                                      format: uri
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Community
+      summary: Create comment
+      description: Create a new comment on a discussion post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Comment content
+                mentions:
+                  type: array
+                  items:
+                    type: string
+                  description: User IDs mentioned in the comment
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /community/comments/{commentId}/react:
+    post:
+      tags:
+        - Community
+      summary: React to comment
+      description: Add a reaction to a comment
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          description: Comment ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reaction
+              properties:
+                reaction:
+                  type: string
+                  description: Emoji reaction
+      responses:
+        '200':
+          description: Reaction added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commentId:
+                    type: string
+                  reactions:
+                    type: object
+                    additionalProperties:
+                      type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /community/groups:
+    get:
+      tags:
+        - Community
+      summary: Get community groups
+      description: Get all community groups (WhatsApp, Telegram)
+      responses:
+        '200':
+          description: Community groups retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    platform:
+                      type: string
+                      enum: [whatsapp, telegram]
+                    url:
+                      type: string
+                      format: uri
+                    memberCount:
+                      type: integer
+                    region:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /leads:
+    get:
+      tags:
+        - Leads
+      summary: Get leads
+      description: Get all leads for the current distributor
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [new, contacted, interested, not_interested, converted]
+        - name: search
+          in: query
+          description: Search term
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Leads retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Lead'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Leads
+      summary: Create lead
+      description: Create a new lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - phone
+              properties:
+                name:
+                  type: string
+                  description: Lead's name
+                phone:
+                  type: string
+                  description: Lead's phone number
+                email:
+                  type: string
+                  format: email
+                  description: Lead's email address
+                notes:
+                  type: string
+                  description: Notes about the lead
+      responses:
+        '201':
+          description: Lead created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /leads/{leadId}:
+    get:
+      tags:
+        - Leads
+      summary: Get lead
+      description: Get a specific lead by ID
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          description: Lead ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lead retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Leads
+      summary: Update lead
+      description: Update a specific lead
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          description: Lead ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Lead's name
+                phone:
+                  type: string
+                  description: Lead's phone number
+                email:
+                  type: string
+                  format: email
+                  description: Lead's email address
+                status:
+                  type: string
+                  enum: [new, contacted, interested, not_interested, converted]
+                  description: Lead status
+                notes:
+                  type: string
+                  description: Notes about the lead
+      responses:
+        '200':
+          description: Lead updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Leads
+      summary: Delete lead
+      description: Delete a specific lead
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          description: Lead ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Lead deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /leads/{leadId}/follow-ups:
+    get:
+      tags:
+        - Leads
+      summary: Get lead follow-ups
+      description: Get all follow-ups for a specific lead
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          description: Lead ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Follow-ups retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FollowUp'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Leads
+      summary: Create follow-up
+      description: Create a new follow-up for a specific lead
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          description: Lead ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - scheduledAt
+              properties:
+                type:
+                  type: string
+                  enum: [whatsapp, sms, call]
+                  description: Follow-up type
+                message:
+                  type: string
+                  description: Follow-up message
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  description: When to schedule the follow-up
+      responses:
+        '201':
+          description: Follow-up created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowUp'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /landing-pages:
+    get:
+      tags:
+        - Leads
+      summary: Get landing pages
+      description: Get all landing pages for the current distributor
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Landing pages retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LandingPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Leads
+      summary: Create landing page
+      description: Create a new landing page
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  description: Landing page title
+                description:
+                  type: string
+                  description: Landing page description
+                image:
+                  type: string
+                  format: binary
+                  description: Landing page image
+                ctaText:
+                  type: string
+                  description: Call-to-action button text
+                theme:
+                  type: string
+                  enum: [default, dark, light, colorful]
+                  default: default
+                  description: Landing page theme
+                customFields:
+                  type: string
+                  description: JSON string of custom fields
+      responses:
+        '201':
+          description: Landing page created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LandingPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /landing-pages/{pageId}:
+    get:
+      tags:
+        - Leads
+      summary: Get landing page
+      description: Get a specific landing page by ID
+      parameters:
+        - name: pageId
+          in: path
+          required: true
+          description: Landing page ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Landing page retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LandingPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Leads
+      summary: Update landing page
+      description: Update a specific landing page
+      parameters:
+        - name: pageId
+          in: path
+          required: true
+          description: Landing page ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Landing page title
+                description:
+                  type: string
+                  description: Landing page description
+                image:
+                  type: string
+                  format: binary
+                  description: Landing page image
+                ctaText:
+                  type: string
+                  description: Call-to-action button text
+                theme:
+                  type: string
+                  enum: [default, dark, light, colorful]
+                  description: Landing page theme
+                customFields:
+                  type: string
+                  description: JSON string of custom fields
+      responses:
+        '200':
+          description: Landing page updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LandingPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Leads
+      summary: Delete landing page
+      description: Delete a specific landing page
+      parameters:
+        - name: pageId
+          in: path
+          required: true
+          description: Landing page ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Landing page deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /referral/link:
+    get:
+      tags:
+        - Leads
+      summary: Get referral link
+      description: Get the referral link for the current distributor
+      responses:
+        '200':
+          description: Referral link retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referralLink:
+                    type: string
+                    format: uri
+                  qrCodeUrl:
+                    type: string
+                    format: uri
+                  clicks:
+                    type: integer
+                  conversions:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /compliance/policies:
+    get:
+      tags:
+        - Compliance
+      summary: Get compliance policies
+      description: Get all compliance policies
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: acknowledged
+          in: query
+          description: Filter by acknowledgment status
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Compliance policies retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/CompliancePolicy'
+                            - type: object
+                              properties:
+                                acknowledged:
+                                  type: boolean
+                                acknowledgedAt:
+                                  type: string
+                                  format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /compliance/policies/{policyId}:
+    get:
+      tags:
+        - Compliance
+      summary: Get compliance policy
+      description: Get a specific compliance policy by ID
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          description: Policy ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LanguageParam'
+      responses:
+        '200':
+          description: Compliance policy retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CompliancePolicy'
+                  - type: object
+                    properties:
+                      acknowledged:
+                        type: boolean
+                      acknowledgedAt:
+                        type: string
+                        format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /compliance/policies/{policyId}/acknowledge:
+    post:
+      tags:
+        - Compliance
+      summary: Acknowledge policy
+      description: Acknowledge a specific compliance policy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          description: Policy ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy acknowledged successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAcknowledgment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analytics/personal:
+    get:
+      tags:
+        - Analytics
+      summary: Get personal analytics
+      description: Get analytics data for the current distributor
+      parameters:
+        - name: timeframe
+          in: query
+          description: Timeframe for analytics
+          schema:
+            type: string
+            enum: [week, month, quarter, year, all_time]
+            default: month
+      responses:
+        '200':
+          description: Personal analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analytics/team:
+    get:
+      tags:
+        - Analytics
+      summary: Get team analytics
+      description: Get analytics data for the team (for team leaders)
+      parameters:
+        - name: timeframe
+          in: query
+          description: Timeframe for analytics
+          schema:
+            type: string
+            enum: [week, month, quarter, year, all_time]
+            default: month
+      responses:
+        '200':
+          description: Team analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analytics/export:
+    get:
+      tags:
+        - Analytics
+      summary: Export analytics data
+      description: Export analytics data to CSV or Google Sheets
+      parameters:
+        - name: type
+          in: query
+          required: true
+          description: Export type
+          schema:
+            type: string
+            enum: [personal, team]
+        - name: format
+          in: query
+          required: true
+          description: Export format
+          schema:
+            type: string
+            enum: [csv, google_sheets]
+        - name: timeframe
+          in: query
+          description: Timeframe for analytics
+          schema:
+            type: string
+            enum: [week, month, quarter, year, all_time]
+            default: month
+      responses:
+        '200':
+          description: Analytics data exported successfully
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Data exported successfully
+                  url:
+                    type: string
+                    format: uri
+                    description: URL to exported Google Sheet
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get notifications
+      description: Get all notifications for the current user
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: read
+          in: query
+          description: Filter by read status
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          description: Filter by notification type
+          schema:
+            type: string
+            enum: [system, training, social, lead, compliance]
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /notifications/{notificationId}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      description: Mark a specific notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          description: Notification ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification marked as read successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      summary: Mark all notifications as read
+      description: Mark all notifications as read for the current user
+      responses:
+        '200':
+          description: All notifications marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: All notifications marked as read
+                  count:
+                    type: integer
+                    description: Number of notifications marked as read
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /notifications/settings:
+    get:
+      tags:
+        - Notifications
+      summary: Get notification settings
+      description: Get notification settings for the current user
+      responses:
+        '200':
+          description: Notification settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pushEnabled:
+                    type: boolean
+                  emailEnabled:
+                    type: boolean
+                  smsEnabled:
+                    type: boolean
+                  whatsappEnabled:
+                    type: boolean
+                  categories:
+                    type: object
+                    properties:
+                      system:
+                        type: boolean
+                      training:
+                        type: boolean
+                      social:
+                        type: boolean
+                      lead:
+                        type: boolean
+                      compliance:
+                        type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Notifications
+      summary: Update notification settings
+      description: Update notification settings for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pushEnabled:
+                  type: boolean
+                emailEnabled:
+                  type: boolean
+                smsEnabled:
+                  type: boolean
+                whatsappEnabled:
+                  type: boolean
+                categories:
+                  type: object
+                  properties:
+                    system:
+                      type: boolean
+                    training:
+                      type: boolean
+                    social:
+                      type: boolean
+                    lead:
+                      type: boolean
+                    compliance:
+                      type: boolean
+      responses:
+        '200':
+          description: Notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notification settings updated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /notifications/register-device:
+    post:
+      tags:
+        - Notifications
+      summary: Register device for push notifications
+      description: Register a device for push notifications using Firebase Cloud Messaging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - platform
+              properties:
+                token:
+                  type: string
+                  description: FCM device token
+                platform:
+                  type: string
+                  enum: [android, ios, web]
+                  description: Device platform
+      responses:
+        '200':
+          description: Device registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Device registered successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
