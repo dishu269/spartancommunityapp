@@ -1,0 +1,64 @@
+/* Basic Reset/Normalize */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  background-color: #f4f7f6; /* A slightly softer off-white */
+  color: #333;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  font-weight: 600; /* Slightly bolder headings */
+}
+
+/* Basic styles for links */
+a {
+  color: #0070f3; /* Next.js blue, or your brand color */
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Basic styles for buttons for consistency if not using CSS modules everywhere */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.5em 1em;
+  border: 1px solid transparent;
+}
+
+/* Basic styles for form inputs for consistency */
+input,
+textarea,
+select {
+  font-family: inherit;
+  padding: 0.5em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%; /* Default to full width within their container */
+  margin-bottom: 0.5em; /* Add some space below inputs */
+}
+
+/* Remove default list styles */
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
